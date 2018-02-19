@@ -13,7 +13,7 @@ extern crate failure;
 use failure::Error;
 use git2::{Commit, ObjectType, Odb, Oid, Repository};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
     let mut oids = vec![];
@@ -32,6 +32,31 @@ fn commits_only<'a>(repo: &'a Repository, odb: &Odb) -> Result<Vec<Commit<'a>>, 
             let commit = repo.find_commit(oid)?;
             commits.push(commit);
         }
+    }
+    Ok(commits)
+}
+
+fn traverse_refs<'a>(repo: &'a Repository) -> Result<Vec<Commit<'a>>, Error> {
+    let mut visited = HashSet::new();
+    let mut queue = vec![];
+    for reference in repo.references()? {
+        if let Ok(commit) = reference?.peel_to_commit() {
+            queue.push(commit.id());
+        }
+    }
+    while let Some(commit_id) = queue.pop() {
+        if !visited.insert(commit_id) {
+            continue;
+        }
+        let commit = repo.find_commit(commit_id)?;
+        for parent_id in commit.parent_ids() {
+            queue.push(parent_id);
+        }
+    }
+    let mut commits = vec![];
+    for commit_id in visited {
+        let commit = repo.find_commit(commit_id)?;
+        commits.push(commit);
     }
     Ok(commits)
 }
@@ -128,7 +153,7 @@ fn calculate_descendents() -> Result<(), Error> {
     let repo = Repository::open(".")?;
     let odb = repo.odb()?;
     let mut graph = Graph::new();
-    for commit in commits_only(&repo, &odb)? {
+    for commit in traverse_refs(&repo)? {
         graph.add(&commit)?;
     }
     println!("{}", serde_json::to_string_pretty(&graph)?);
