@@ -11,30 +11,9 @@ extern crate serde_json;
 extern crate failure;
 
 use failure::Error;
-use git2::{Commit, ObjectType, Odb, Oid, Repository};
+use git2::{Commit, Oid, Repository};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
-
-fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
-    let mut oids = vec![];
-    odb.foreach(|oid| {
-        oids.push(oid.clone());
-        true
-    })?;
-    Ok(oids)
-}
-
-fn commits_only<'a>(repo: &'a Repository, odb: &Odb) -> Result<Vec<Commit<'a>>, Error> {
-    let mut commits = vec![];
-    for oid in list_oids(odb)? {
-        let object = odb.read(oid)?;
-        if object.kind() == ObjectType::Commit {
-            let commit = repo.find_commit(oid)?;
-            commits.push(commit);
-        }
-    }
-    Ok(commits)
-}
 
 fn traverse_refs<'a>(repo: &'a Repository) -> Result<Vec<Commit<'a>>, Error> {
     let mut visited = HashSet::new();
@@ -149,19 +128,23 @@ impl Graph {
     }
 }
 
-fn calculate_descendents() -> Result<(), Error> {
+fn calculate_descendents() -> Result<Graph, Error> {
     let repo = Repository::open(".")?;
-    let odb = repo.odb()?;
     let mut graph = Graph::new();
     for commit in traverse_refs(&repo)? {
         graph.add(&commit)?;
     }
+    Ok(graph)
+}
+
+fn print_graph() -> Result<(), Error> {
+    let graph = calculate_descendents()?;
     println!("{}", serde_json::to_string_pretty(&graph)?);
     Ok(())
 }
 
 fn main() {
-    match calculate_descendents() {
+    match print_graph() {
         Ok(()) => {}
         Err(err) => eprintln!("Error: {}", err),
     }
