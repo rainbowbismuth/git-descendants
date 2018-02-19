@@ -109,7 +109,7 @@ impl Graph {
     }
 
     fn add(&mut self, commit: &Commit) -> Result<(), Error> {
-        let parent_ids: Vec<Oid> = commit.parent_ids().collect();
+        let parent_ids = commit.parent_ids().collect();
 
         if let Some(ref mut node) = self.graph.get_mut(&commit.id()) {
             node.parents = parent_ids;
