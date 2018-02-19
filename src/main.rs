@@ -12,15 +12,25 @@ extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
 use failure::Error;
-use git2::Repository;
+use git2::{Repository, Odb, OdbObject, Oid};
+
+fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
+    let mut oids = vec![];
+    odb.foreach(|oid| {
+        oids.push(oid.clone());
+        true
+    })?;
+    Ok(oids)
+}
 
 fn calculate_descendents() -> Result<(), Error> {
     let repo = Repository::open(".")?;
     let odb = repo.odb()?;
-    odb.foreach(|oid| {
-        println!("OID: {}", oid);
-        true
-    })?;
+    for oid in list_oids(&odb)? {
+        let object = odb.read(oid)?;
+        println!("{:>6} {}", object.kind(), oid);
+    }
+
     Ok(())
 }
 
@@ -28,6 +38,6 @@ fn calculate_descendents() -> Result<(), Error> {
 fn main() {
     match calculate_descendents() {
         Ok(()) => {},
-        Err(err) => println!("An error occurred: {}", err)
+        Err(err) => eprintln!("Error: {}", err)
     }
 }
