@@ -12,7 +12,7 @@ extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
 use failure::Error;
-use git2::{Repository, Odb, OdbObject, Oid};
+use git2::{Repository, Odb, OdbObject, ObjectType, Commit, Oid};
 
 fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
     let mut oids = vec![];
@@ -23,17 +23,26 @@ fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
     Ok(oids)
 }
 
+fn commits_only<'a>(repo: &'a Repository, odb: &Odb) -> Result<Vec<Commit<'a>>, Error> {
+    let mut commits = vec![];
+    for oid in list_oids(odb)? {
+        let object = odb.read(oid)?;
+        if object.kind() == ObjectType::Commit {
+            let commit = repo.find_commit(oid)?;
+            commits.push(commit);
+        }
+    }
+    Ok(commits)
+}
+
 fn calculate_descendents() -> Result<(), Error> {
     let repo = Repository::open(".")?;
     let odb = repo.odb()?;
-    for oid in list_oids(&odb)? {
-        let object = odb.read(oid)?;
-        println!("{:>6} {}", object.kind(), oid);
+    for commit in commits_only(&repo, &odb)? {
+        println!("{} {}", commit.id(), commit.message().unwrap_or("").trim());
     }
-
     Ok(())
 }
-
 
 fn main() {
     match calculate_descendents() {
