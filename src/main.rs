@@ -118,9 +118,8 @@ impl Graph {
 
         let mut node = Node::new();
         for parent_id in &parent_ids {
-            if let Some(ref mut node) = self.graph.get_mut(parent_id) {
-                node.children.push(commit.id());
-            }
+            let ref mut node = self.graph.entry(*parent_id).or_insert(Node::new());
+            node.children.push(commit.id());
         }
         node.parents = parent_ids;
         self.graph.insert(commit.id(), node);
