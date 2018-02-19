@@ -13,7 +13,7 @@ extern crate failure;
 use failure::Error;
 use git2::{Commit, ObjectType, Odb, Oid, Repository};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
     let mut oids = vec![];
@@ -81,7 +81,7 @@ impl Serialize for Node {
 
 #[derive(Debug)]
 struct Graph {
-    graph: BTreeMap<Oid, Node>,
+    graph: HashMap<Oid, Node>,
 }
 
 impl Serialize for Graph {
@@ -100,7 +100,7 @@ impl Serialize for Graph {
 impl Graph {
     fn new() -> Graph {
         Graph {
-            graph: BTreeMap::new(),
+            graph: HashMap::new(),
         }
     }
 
