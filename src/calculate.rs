@@ -5,7 +5,7 @@
 // except according to those terms.
 
 use failure::Error;
-use git2::{Commit, Oid, Repository};
+use git2::{Commit, Repository};
 use std::collections::HashSet;
 use graph::Graph;
 
@@ -24,7 +24,7 @@ pub fn traverse_from_roots<'a>(
     commits: &[Commit<'a>],
 ) -> Result<Vec<Commit<'a>>, Error> {
     let mut visited = HashSet::new();
-    let mut queue = commits.iter().map(|x| x.id()).collect::<Vec<Oid>>();
+    let mut queue = commits.iter().map(|x| x.id()).collect::<Vec<_>>();
     while let Some(commit_id) = queue.pop() {
         if !visited.insert(commit_id) {
             continue;
@@ -46,7 +46,7 @@ pub fn graph_from_refs(repo: &Repository) -> Result<Graph, Error> {
     let mut graph = Graph::new();
     let roots = root_commits_by_refs(&repo)?;
     for commit in traverse_from_roots(&repo, &roots)? {
-        graph.add(&commit)?;
+        graph.add(&commit);
     }
     Ok(graph)
 }

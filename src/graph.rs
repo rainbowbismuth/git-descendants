@@ -4,7 +4,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use failure::Error;
 use git2::{Commit, Oid};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
 use std::collections::HashMap;
@@ -77,22 +76,23 @@ impl Graph {
         }
     }
 
-    pub fn add(&mut self, commit: &Commit) -> Result<(), Error> {
-        let parent_ids = commit.parent_ids().collect();
-
-        if let Some(ref mut node) = self.graph.get_mut(&commit.id()) {
-            node.parents = parent_ids;
-            return Ok(());
-        }
-
-        let mut node = Node::new();
+    // Invariant: Don't add the same commit more then once.
+    pub fn add(&mut self, commit: &Commit) {
+        let parent_ids = commit.parent_ids().collect::<Vec<_>>();
+        self.set_parents(commit.id(), &parent_ids);
         for parent_id in &parent_ids {
-            let ref mut node = self.graph.entry(*parent_id).or_insert(Node::new());
-            node.children.push(commit.id());
+            self.add_child(*parent_id, commit.id());
         }
-        node.parents = parent_ids;
-        self.graph.insert(commit.id(), node);
-        Ok(())
+    }
+
+    fn set_parents(&mut self, node: Oid, parents: &[Oid]) {
+        let ref mut node = self.graph.entry(node).or_insert(Node::new());
+        node.parents.extend_from_slice(parents);
+    }
+
+    fn add_child(&mut self, parent: Oid, child: Oid) {
+        let ref mut node = self.graph.entry(parent).or_insert(Node::new());
+        node.children.push(child);
     }
 
     pub fn children(&self, oid: &Oid) -> Option<&[Oid]> {
