@@ -30,7 +30,7 @@ fn main() {
 
     let revision = Arg::with_name("REVISION")
         .help("The revision you wish to know the children of")
-        .required(false)
+        .required(true)
         .index(1);
 
     let matches = App::new("git-descendants")
