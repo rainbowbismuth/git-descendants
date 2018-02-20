@@ -88,4 +88,8 @@ impl Graph {
         self.graph.insert(commit.id(), node);
         Ok(())
     }
+
+    pub fn children(&self, oid: &Oid) -> Option<&[Oid]> {
+        self.graph.get(oid).map(|node| node.children.as_slice())
+    }
 }
