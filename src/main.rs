@@ -16,7 +16,7 @@ mod calculate;
 
 use failure::Error;
 use clap::{App, Arg};
-use git2::Repository;
+use git2::{Commit, Repository};
 
 fn print_graph(path: &str) -> Result<(), Error> {
     let repo = Repository::open(path)?;
@@ -29,11 +29,7 @@ fn print_roots(path: &str) -> Result<(), Error> {
     let repo = Repository::open(path)?;
     let roots = calculate::root_commits_by_refs(&repo)?;
     for root in &roots {
-        println!(
-            "{} {}",
-            root.id(),
-            root.message().unwrap_or("<no message>").trim()
-        );
+        print_commit(root);
     }
     Ok(())
 }
@@ -44,12 +40,19 @@ fn print_children(path: &str, revision: &str) -> Result<(), Error> {
     let graph = calculate::graph_from_refs(&repo)?;
     if let Some(children) = graph.children(&revision_oid) {
         for child in children {
-            println!("{}", child);
+            let commit = repo.find_commit(*child)?;
+            print_commit(&commit);
         }
-        Ok(())
-    } else {
-        Ok(())
     }
+    Ok(())
+}
+
+fn print_commit(commit: &Commit) {
+    println!(
+        "{} {}",
+        commit.id(),
+        commit.summary().unwrap_or("<no message>").trim()
+    )
 }
 
 fn main() {
