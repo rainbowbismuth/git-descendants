@@ -4,6 +4,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+extern crate clap;
 extern crate git2;
 extern crate serde;
 extern crate serde_json;
@@ -14,6 +15,7 @@ use failure::Error;
 use git2::{Commit, Oid, Repository};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
+use clap::{App, Arg, SubCommand};
 
 fn traverse_refs<'a>(repo: &'a Repository) -> Result<Vec<Commit<'a>>, Error> {
     let mut visited = HashSet::new();
@@ -127,8 +129,8 @@ impl Graph {
     }
 }
 
-fn calculate_descendents() -> Result<Graph, Error> {
-    let repo = Repository::open(".")?;
+fn calculate_descendents(path: &str) -> Result<Graph, Error> {
+    let repo = Repository::open(path)?;
     let mut graph = Graph::new();
     for commit in traverse_refs(&repo)? {
         graph.add(&commit)?;
@@ -136,14 +138,27 @@ fn calculate_descendents() -> Result<Graph, Error> {
     Ok(graph)
 }
 
-fn print_graph() -> Result<(), Error> {
-    let graph = calculate_descendents()?;
+fn print_graph(path: &str) -> Result<(), Error> {
+    let graph = calculate_descendents(path)?;
     println!("{}", serde_json::to_string_pretty(&graph)?);
     Ok(())
 }
 
 fn main() {
-    match print_graph() {
+    let matches = App::new("git-descendants")
+        .version("0.1")
+        .author("Emily Amanda Bellows <emily.a.bellows@gmail.com>")
+        .about("Calculates an adjacency list of commits")
+        .arg(
+            Arg::with_name("PATH_TO_GIT_REPO")
+                .help("Optionally specify the git repository to use")
+                .required(false)
+                .index(1),
+        )
+        .get_matches();
+
+    let path = matches.value_of("PATH_TO_GIT_REPO").unwrap_or(".");
+    match print_graph(path) {
         Ok(()) => {}
         Err(err) => eprintln!("Error: {}", err),
     }
