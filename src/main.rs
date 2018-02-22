@@ -33,6 +33,12 @@ fn main() {
         .required(true)
         .index(1);
 
+    let as_dot = Arg::with_name("as_dot_file")
+        .help("Write out the graph as a dot file instead of JSON")
+        .long("dot")
+        .short("d")
+        .takes_value(false);
+
     let matches = App::new("git-descendants")
         .version(crate_version!())
         .author("Emily Amanda Bellows <emily.a.bellows@gmail.com>")
@@ -41,7 +47,8 @@ fn main() {
         .subcommand(
             SubCommand::with_name("graph")
                 .about("Calculate and write out the commit graph")
-                .arg(&repo_path),
+                .arg(&repo_path)
+                .arg(&as_dot),
         )
         .subcommand(
             SubCommand::with_name("roots")
@@ -65,7 +72,11 @@ fn main() {
 fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
     if let Some(matches) = matches.subcommand_matches("graph") {
         let path = matches.value_of("repo_path").unwrap_or(".");
-        print_graph(path)
+        if matches.is_present("as_dot_file") {
+            print_dot(path)
+        } else {
+            print_graph(path)
+        }
     } else if let Some(matches) = matches.subcommand_matches("roots") {
         let path = matches.value_of("repo_path").unwrap_or(".");
         print_roots(path)
@@ -109,6 +120,19 @@ fn print_children(path: &str, revision: &str) -> Result<(), Error> {
             print_commit(&commit);
         }
     }
+    Ok(())
+}
+
+fn print_dot(path: &str) -> Result<(), Error> {
+    let repo = Repository::open(path)?;
+    let graph = calculate::graph_from_refs(&repo)?;
+    println!("digraph G {{");
+    for (k, v) in graph.iter() {
+        for child in v.children() {
+            println!("     n{} -> n{};", k, child);
+        }
+    }
+    println!("}}");
     Ok(())
 }
 

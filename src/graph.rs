@@ -7,6 +7,7 @@
 use git2::{Commit, Oid};
 use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
 use std::collections::HashMap;
+use std::collections::hash_map;
 
 #[derive(Debug)]
 pub struct Node {
@@ -36,6 +37,10 @@ impl Node {
 
     pub fn children_strings(&self) -> Vec<String> {
         oids_to_strings(&self.children)
+    }
+
+    pub fn children(&self) -> &[Oid] {
+        &self.children
     }
 }
 
@@ -97,5 +102,9 @@ impl Graph {
 
     pub fn children(&self, oid: &Oid) -> Option<&[Oid]> {
         self.graph.get(oid).map(|node| node.children.as_slice())
+    }
+
+    pub fn iter(&self) -> hash_map::Iter<Oid, Node> {
+        self.graph.iter()
     }
 }
