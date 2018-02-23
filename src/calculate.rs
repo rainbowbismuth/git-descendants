@@ -68,3 +68,11 @@ pub fn graph_from_refs(repo: &Repository) -> Result<Graph, Error> {
     }
     Ok(graph)
 }
+
+pub fn graph_from_all(repo: &Repository) -> Result<Graph, Error> {
+    let mut graph = Graph::new();
+    for commit in commits_only(&repo)?.values() {
+        graph.add(&commit);
+    }
+    Ok(graph)
+}

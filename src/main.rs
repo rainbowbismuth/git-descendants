@@ -35,6 +35,11 @@ fn main() {
         .required(true)
         .index(1);
 
+    let all = Arg::with_name("all")
+        .help("Include all commits, not just those reachable from references")
+        .long("all")
+        .short("a");
+
     let matches = App::new("git-descendants")
         .version(crate_version!())
         .author("Emily Amanda Bellows <emily.a.bellows@gmail.com>")
@@ -43,7 +48,8 @@ fn main() {
         .subcommand(
             SubCommand::with_name("graph")
                 .about("Calculate and write out the commit graph")
-                .arg(&repo_path),
+                .arg(&repo_path)
+                .arg(&all),
         )
         .subcommand(
             SubCommand::with_name("roots")
@@ -72,7 +78,8 @@ fn main() {
 fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
     if let Some(matches) = matches.subcommand_matches("graph") {
         let path = matches.value_of("repo_path").unwrap_or(".");
-        print_graph(path)
+        let all = matches.is_present("all");
+        print_graph(path, all)
     } else if let Some(matches) = matches.subcommand_matches("roots") {
         let path = matches.value_of("repo_path").unwrap_or(".");
         print_roots(path)
@@ -93,9 +100,13 @@ fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
     }
 }
 
-fn print_graph(path: &str) -> Result<(), Error> {
+fn print_graph(path: &str, all: bool) -> Result<(), Error> {
     let repo = Repository::open(path)?;
-    let graph = calculate::graph_from_refs(&repo)?;
+    let graph = if all {
+        calculate::graph_from_all(&repo)?
+    } else {
+        calculate::graph_from_refs(&repo)?
+    };
     println!("{}", serde_json::to_string_pretty(&graph)?);
     Ok(())
 }
@@ -136,23 +147,15 @@ fn print_lost(path: &str) -> Result<(), Error> {
         commits_to_show.push(commit);
     }
 
-    commits_to_show.sort_by(|a,b| a.time().cmp(&b.time()));
+    commits_to_show.sort_by(|a, b| a.time().cmp(&b.time()));
     for commit in commits_to_show {
-        print_commit_extended(&commit);
+        print_commit(&commit);
     }
 
     Ok(())
 }
 
 fn print_commit(commit: &Commit) {
-    println!(
-        "{} {}",
-        commit.id(),
-        commit.summary().unwrap_or("<no summary>").trim()
-    )
-}
-
-fn print_commit_extended(commit: &Commit) {
     let commit_line = format!("commit {}\n", commit.id()).yellow();
     let author_line = format!("Author: {}\n", commit.author());
     let summary_line = format!(
