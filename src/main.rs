@@ -128,10 +128,16 @@ fn print_lost(path: &str) -> Result<(), Error> {
     let root_commits = calculate::root_commits_by_refs(&repo)?;
     let some_commits = calculate::traverse_from_roots(&repo, &root_commits)?;
 
+    let mut commits_to_show = vec![];
     for (oid, commit) in all_commits {
         if some_commits.contains_key(&oid) {
             continue;
         }
+        commits_to_show.push(commit);
+    }
+
+    commits_to_show.sort_by(|a,b| a.time().cmp(&b.time()));
+    for commit in commits_to_show {
         print_commit_extended(&commit);
     }
 
