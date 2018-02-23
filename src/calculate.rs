@@ -5,9 +5,31 @@
 // except according to those terms.
 
 use failure::Error;
-use git2::{Commit, Oid, Repository};
+use git2::{Commit, Oid, Odb, Repository, ObjectType};
 use std::collections::HashMap;
 use graph::Graph;
+
+fn list_oids(odb: &Odb) -> Result<Vec<Oid>, Error> {
+    let mut oids = vec![];
+    odb.foreach(|oid| {
+        oids.push(oid.clone());
+        true
+    })?;
+    Ok(oids)
+}
+
+pub fn commits_only<'a>(repo: &'a Repository) -> Result<HashMap<Oid, Commit<'a>>, Error> {
+    let mut commits = HashMap::new();
+    let odb = repo.odb()?;
+    for oid in list_oids(&odb)? {
+        let object = odb.read(oid)?;
+        if object.kind() == ObjectType::Commit {
+            let commit = repo.find_commit(oid)?;
+            commits.insert(oid, commit);
+        }
+    }
+    Ok(commits)
+}
 
 pub fn root_commits_by_refs<'a>(repo: &'a Repository) -> Result<Vec<Commit<'a>>, Error> {
     let mut commits = vec![];

@@ -7,6 +7,7 @@
 extern crate git2;
 extern crate serde;
 extern crate serde_json;
+extern crate colored;
 
 #[macro_use]
 extern crate clap;
@@ -16,6 +17,8 @@ extern crate failure;
 
 mod graph;
 mod calculate;
+use colored::*;
+
 
 use failure::{err_msg, Error};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -54,6 +57,11 @@ fn main() {
                 .arg(&repo_path)
                 .arg(&revision),
         )
+        .subcommand(
+            SubCommand::with_name("lost")
+                .about("Find commits that you can't get to normally")
+                .arg(&repo_path)
+        )
         .get_matches();
 
     match run_subcommand(matches) {
@@ -75,6 +83,9 @@ fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
             .value_of("REVISION")
             .ok_or(err_msg("REVISION not specified"))?;
         print_children(path, revision)
+    } else if let Some(matches) = matches.subcommand_matches("lost") {
+        let path = matches.value_of("repo_path").unwrap_or(".");
+        print_lost(path)
     } else {
         Err(format_err!(
             "Unknown subcommand, {}",
@@ -112,10 +123,34 @@ fn print_children(path: &str, revision: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn print_lost(path: &str) -> Result<(), Error> {
+    let repo = Repository::open(path)?;
+    let all_commits = calculate::commits_only(&repo)?;
+    let root_commits = calculate::root_commits_by_refs(&repo)?;
+    let some_commits = calculate::traverse_from_roots(&repo, &root_commits)?;
+
+
+    for (oid, commit) in all_commits {
+        if some_commits.contains_key(&oid) {
+            continue;
+        }
+        print_commit_extended(&commit);
+    }
+
+    Ok(())
+}
+
 fn print_commit(commit: &Commit) {
     println!(
         "{} {}",
         commit.id(),
-        commit.summary().unwrap_or("<no message>").trim()
+        commit.summary().unwrap_or("<no summary>").trim()
     )
+}
+
+fn print_commit_extended(commit: &Commit) {
+    let commit_line = format!("commit {}\n", commit.id()).yellow();
+    let author_line = format!("Author: {}\n", commit.author());
+    let summary_line = format!("     {}\n", commit.summary().unwrap_or("<no summary>").trim());
+    println!("{}{}{}", commit_line, author_line, summary_line)
 }
