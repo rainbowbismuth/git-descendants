@@ -56,7 +56,7 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("roots")
-                .about("Prints the roots of the graph")
+                .about("Prints the roots of the ref-based graph")
                 .arg(&repo_path),
         )
         .subcommand(
