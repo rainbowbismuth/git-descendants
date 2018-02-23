@@ -24,6 +24,7 @@ use chrono::prelude::*;
 use failure::{err_msg, Error};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use git2::{Commit, Repository};
+use graph::Graph;
 
 fn main() {
     let repo_path = Arg::with_name("repo_path")
@@ -62,7 +63,8 @@ fn main() {
             SubCommand::with_name("children")
                 .about("Print the child commits of a given revision")
                 .arg(&repo_path)
-                .arg(&revision),
+                .arg(&revision)
+                .arg(&all),
         )
         .subcommand(
             SubCommand::with_name("lost")
@@ -87,10 +89,11 @@ fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
         print_roots(path)
     } else if let Some(matches) = matches.subcommand_matches("children") {
         let path = matches.value_of("repo_path").unwrap_or(".");
+        let all = matches.is_present("all");
         let revision = matches
             .value_of("REVISION")
             .ok_or(err_msg("REVISION not specified"))?;
-        print_children(path, revision)
+        print_children(path, revision, all)
     } else if let Some(matches) = matches.subcommand_matches("lost") {
         let path = matches.value_of("repo_path").unwrap_or(".");
         print_lost(path)
@@ -102,13 +105,17 @@ fn run_subcommand(matches: ArgMatches) -> Result<(), Error> {
     }
 }
 
+fn get_graph(repo: &Repository, all: bool) -> Result<Graph, Error> {
+    if all {
+        calculate::graph_from_all(repo)
+    } else {
+        calculate::graph_from_refs(repo)
+    }
+}
+
 fn print_graph(path: &str, all: bool) -> Result<(), Error> {
     let repo = Repository::open(path)?;
-    let graph = if all {
-        calculate::graph_from_all(&repo)?
-    } else {
-        calculate::graph_from_refs(&repo)?
-    };
+    let graph = get_graph(&repo, all)?;
     println!("{}", serde_json::to_string_pretty(&graph)?);
     Ok(())
 }
@@ -122,10 +129,10 @@ fn print_roots(path: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn print_children(path: &str, revision: &str) -> Result<(), Error> {
+fn print_children(path: &str, revision: &str, all: bool) -> Result<(), Error> {
     let repo = Repository::open(path)?;
     let revision_oid = repo.revparse_single(revision)?.id();
-    let graph = calculate::graph_from_refs(&repo)?;
+    let graph = get_graph(&repo, all)?;
     if let Some(children) = graph.children(&revision_oid) {
         for child in children {
             let commit = repo.find_commit(*child)?;
