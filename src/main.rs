@@ -4,6 +4,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+extern crate chrono;
 extern crate colored;
 extern crate git2;
 extern crate serde;
@@ -18,6 +19,7 @@ extern crate failure;
 mod graph;
 mod calculate;
 use colored::*;
+use chrono::prelude::*;
 
 use failure::{err_msg, Error};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -158,9 +160,18 @@ fn print_lost(path: &str) -> Result<(), Error> {
 fn print_commit(commit: &Commit) {
     let commit_line = format!("commit {}\n", commit.id()).yellow();
     let author_line = format!("Author: {}\n", commit.author());
+    let date_line = format!(
+        "Date:   {}\n",
+        Local
+            .timestamp(commit.time().seconds(), 0)
+            .format("%a %b %d %T %Y %z")
+    );
     let summary_line = format!(
         "     {}\n",
         commit.summary().unwrap_or("<no summary>").trim()
     );
-    println!("{}{}{}", commit_line, author_line, summary_line)
+    println!(
+        "{}{}{}\n{}",
+        commit_line, author_line, date_line, summary_line
+    )
 }
