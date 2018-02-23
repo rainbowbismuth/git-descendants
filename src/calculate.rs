@@ -5,7 +5,7 @@
 // except according to those terms.
 
 use failure::Error;
-use git2::{Commit, Oid, Odb, Repository, ObjectType};
+use git2::{Commit, ObjectType, Odb, Oid, Repository};
 use std::collections::HashMap;
 use graph::Graph;
 

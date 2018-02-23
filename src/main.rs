@@ -4,10 +4,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+extern crate colored;
 extern crate git2;
 extern crate serde;
 extern crate serde_json;
-extern crate colored;
 
 #[macro_use]
 extern crate clap;
@@ -18,7 +18,6 @@ extern crate failure;
 mod graph;
 mod calculate;
 use colored::*;
-
 
 use failure::{err_msg, Error};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -60,7 +59,7 @@ fn main() {
         .subcommand(
             SubCommand::with_name("lost")
                 .about("Find commits that you can't get to normally")
-                .arg(&repo_path)
+                .arg(&repo_path),
         )
         .get_matches();
 
@@ -129,7 +128,6 @@ fn print_lost(path: &str) -> Result<(), Error> {
     let root_commits = calculate::root_commits_by_refs(&repo)?;
     let some_commits = calculate::traverse_from_roots(&repo, &root_commits)?;
 
-
     for (oid, commit) in all_commits {
         if some_commits.contains_key(&oid) {
             continue;
@@ -151,6 +149,9 @@ fn print_commit(commit: &Commit) {
 fn print_commit_extended(commit: &Commit) {
     let commit_line = format!("commit {}\n", commit.id()).yellow();
     let author_line = format!("Author: {}\n", commit.author());
-    let summary_line = format!("     {}\n", commit.summary().unwrap_or("<no summary>").trim());
+    let summary_line = format!(
+        "     {}\n",
+        commit.summary().unwrap_or("<no summary>").trim()
+    );
     println!("{}{}{}", commit_line, author_line, summary_line)
 }
